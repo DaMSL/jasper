@@ -1,0 +1,119 @@
+<project name="jasper" default="dist" basedir=".">
+  <description>
+      Jasper
+  </description>
+  
+  <!-- set global properties for this build -->
+  <property name="src"   location="src"/>
+  <property name="test"  location="test"/>
+  <property name="build" location="bin"/>
+  <property name="dist"  location="dist"/>
+
+  <!-- Define the CLASSPATH -->
+  <path id="compile.classpath">
+    <fileset dir="lib">
+      <include name="**/*.jar"/>
+      <include name="**/logging/*.jar"/>
+      <include name="**/codecs/*.jar"/>
+      <include name="**/interfaces/*.jar"/>
+    </fileset>
+  </path>
+
+  <path id="compile.test.classpath">
+    <pathelement location="${build}"/>
+    <pathelement location="${test}"/>
+    <path refid="compile.classpath"/>
+  </path>
+
+  <presetdef name="jasper.javac">
+     <javac includeantruntime="false">
+       <compilerarg value="-Xlint:unchecked"/>
+     </javac>
+  </presetdef>
+
+  <target name="help">
+    <echo>You can use the following targets:</echo>
+    <echo> </echo>
+    <echo>  help     : (default) Prints this message </echo>
+    <echo>  all      : Cleans, compiles, and packages application</echo>
+    <echo>  clean    : Deletes work directories</echo>
+    <echo>  doc      : Generates documentation in doc/</echo>
+    <echo>  compile  : Compiles servlets into class files</echo>
+    <echo>  dist     : Packages artifacts into a deployable JAR</echo>
+    <echo>  test     : Runs unit tests</echo>
+    <echo></echo>
+    <echo>For example, to clean, compile, and package all at once, run:</echo>
+    <echo>prompt> ant all </echo>
+  </target>
+
+  <target name="all" depends="clean,compile,dist"
+          description="Clean work dirs, then compile and create a JAR"/>
+
+  <target name="init">
+    <tstamp/>
+    <mkdir dir="${build}"/>
+  </target>
+
+  <!-- Compilation and distribution targets -->
+  <target name="compile" depends="init" description="compile the source " >
+    <jasper.javac srcdir="${src}" destdir="${build}">
+      <classpath refid="compile.classpath"/>
+    </jasper.javac>
+  </target>
+
+  <target name="dist" depends="compile" description="generate the distribution" >
+    <mkdir dir="${dist}/lib"/>
+    <jar jarfile="${dist}/lib/jasper-${DSTAMP}.jar" basedir="${build}"/>
+  </target>
+
+  <target name="clean" description="clean up" >
+    <delete dir="${build}"/>
+    <delete dir="${dist}"/>
+  </target>
+
+  <!-- Testing targets -->
+  <target name="compile-test" depends="init,compile" description="compile the source " >
+    <jasper.javac srcdir="${test}">
+      <classpath refid="compile.test.classpath"/>
+    </jasper.javac>
+  </target>
+
+  <target name="clean-test" description="clean up" >
+    <delete>
+      <fileset dir="${test}" includes="**/*.class" />
+    </delete>
+  </target>
+
+  <target name="junit" depends="compile-test">
+    <junit printsummary="true" haltonfailure="on">
+      <classpath refid="compile.test.classpath"/>
+      <formatter type="brief" usefile="false"/>
+      <batchtest fork="yes">
+        <fileset dir="${test}">
+          <include name="**/*Test.java"/>
+          <!-- Exclude empty tests -->
+          <exclude name="**/*DbBufferPoolTest*"/>
+          <exclude name="**/*FileManagerTest*"/>
+          <exclude name="**/*StorageEngineTest*"/>
+          <exclude name="**/*BufferedPageAccessorTest*"/>
+          <exclude name="**/*HeapFileAccessorTest*"/>
+          <exclude name="**/*BufferedFileIteratorTest*"/>
+        </fileset>
+      </batchtest>
+    </junit>
+  </target>
+
+  <target name="test" depends="clean-test,compile-test,junit"
+          description="Clean tests, then compiles and evaluates tests"/>
+
+  <!-- Documentation targets -->
+  <target name="doc">
+    <javadoc sourcepath="src"
+             defaultexcludes="yes"
+             destdir="docs/api"
+             author="true"
+             version="true"
+             use="true"
+             windowtitle="Jasper API"/>
+  </target>
+</project>
