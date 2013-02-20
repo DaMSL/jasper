@@ -1,4 +1,4 @@
-package edu.jhu.cs.damsl.engine.utils;
+package edu.jhu.cs.damsl.utils;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

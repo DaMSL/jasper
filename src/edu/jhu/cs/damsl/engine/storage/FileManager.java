@@ -31,7 +31,7 @@ import edu.jhu.cs.damsl.engine.storage.iterator.page.WrappedStorageIterator;
 import edu.jhu.cs.damsl.engine.storage.iterator.util.MultiplexedListIterator;
 import edu.jhu.cs.damsl.engine.storage.page.Page;
 import edu.jhu.cs.damsl.engine.storage.page.PageHeader;
-import edu.jhu.cs.damsl.engine.utils.LRUCache;
+import edu.jhu.cs.damsl.utils.LRUCache;
 import edu.jhu.cs.damsl.utils.hw1.HW1.*;
 
 /**

@@ -18,7 +18,7 @@ import edu.jhu.cs.damsl.engine.storage.StorageEngine;
 import edu.jhu.cs.damsl.engine.storage.file.StorageFile;
 import edu.jhu.cs.damsl.engine.storage.page.Page;
 import edu.jhu.cs.damsl.engine.storage.page.PageHeader;
-import edu.jhu.cs.damsl.engine.utils.LRUCache;
+import edu.jhu.cs.damsl.utils.LRUCache;
 import edu.jhu.cs.damsl.utils.hw1.HW1.*;
 
 @CS316Todo

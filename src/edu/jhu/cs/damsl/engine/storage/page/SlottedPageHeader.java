@@ -15,6 +15,7 @@ import edu.jhu.cs.damsl.utils.hw1.HW1.*;
 @CS416Todo
 public class SlottedPageHeader extends PageHeader {
 
+  public static final short SLOT_SIZE = (Short.SIZE>>3)*2;
   public static final short INVALID_SLOT = -1;
 
   public class Slot {
