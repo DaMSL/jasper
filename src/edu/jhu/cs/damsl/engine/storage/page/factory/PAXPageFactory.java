@@ -38,4 +38,12 @@ public class PAXPageFactory implements PageFactory<PAXPageHeader, PAXPage>
     return null;
   }
 
+  public PAXPage getPage(Integer id, ChannelBuffer buf) {
+    return null;
+  }
+  
+  public PAXPage getPage(PageId id, ChannelBuffer buf) {
+    return null;
+  }
+
 }

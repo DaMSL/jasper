@@ -19,11 +19,24 @@ import edu.jhu.cs.damsl.utils.hw1.HW1.*;
 public class ContiguousStorageFileFactory
         implements StorageFileFactory<PageHeader, ContiguousPage, ContiguousHeapFile>
 {
+  protected static final ContiguousPageFactory pageFactory
+    = new ContiguousPageFactory();
+
+  StorageEngine<PageHeader, ContiguousPage, ContiguousHeapFile> engine;
+  Integer pageSize;
+  Long capacity;
+
   public ContiguousStorageFileFactory() {}
 
-  public void initialize(DbEngine<PageHeader, ContiguousPage, ContiguousHeapFile> dbms) {}
+  public void initialize(DbEngine<PageHeader, ContiguousPage, ContiguousHeapFile> dbms) {
+    engine   = dbms.getStorageEngine();
+    pageSize = engine.getBufferPool().getPageSize();
+    capacity = Defaults.getDefaultFileSize();
+  }
 
-  public ContiguousPageFactory getPageFactory() { return null; }
+  public ContiguousPageFactory getPageFactory() {
+    return pageFactory;
+  }
 
   public ContiguousHeapFile getFile(String fName)
     throws FileNotFoundException

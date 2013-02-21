@@ -12,6 +12,7 @@ import edu.jhu.cs.damsl.catalog.identifiers.PageId;
 import edu.jhu.cs.damsl.engine.storage.Tuple;
 import edu.jhu.cs.damsl.engine.storage.accessor.BufferedPageAccessor;
 import edu.jhu.cs.damsl.engine.storage.file.SlottedHeapFile;
+import edu.jhu.cs.damsl.engine.storage.file.factory.SlottedStorageFileFactory;
 import edu.jhu.cs.damsl.engine.storage.page.SlottedPage;
 import edu.jhu.cs.damsl.engine.storage.page.SlottedPageHeader;
 import edu.jhu.cs.damsl.engine.storage.page.Page.Permissions;
@@ -19,12 +20,13 @@ import edu.jhu.cs.damsl.utils.FileTestUtils;
 
 public class SlottedHeapFileTest {
 
-  private FileTestUtils ftUtils;
+  private FileTestUtils<SlottedPageHeader, SlottedPage, SlottedHeapFile> ftUtils;
   private BufferedPageAccessor<SlottedPageHeader, SlottedPage, SlottedHeapFile> fileAccessor;
 
   @Before
   public void setUp() throws Exception {
-    ftUtils = new FileTestUtils(true);
+    ftUtils = new FileTestUtils<SlottedPageHeader, SlottedPage, SlottedHeapFile>(
+                new SlottedStorageFileFactory(), true);
     fileAccessor =
       new BufferedPageAccessor<SlottedPageHeader, SlottedPage, SlottedHeapFile>(
         ftUtils.getStorage(), null, Permissions.WRITE, ftUtils.getFile());
@@ -33,7 +35,7 @@ public class SlottedHeapFileTest {
   @Test
   public void writeTest() {
     List<Tuple> tuples = ftUtils.getTuples();
-    List<SlottedPage> pages = ftUtils.generateSlottedPages(fileAccessor, tuples);
+    List<SlottedPage> pages = ftUtils.generatePages(fileAccessor, tuples);
 
     long len = 0;
     for (SlottedPage p : pages) {
@@ -62,7 +64,7 @@ public class SlottedHeapFileTest {
     PageId id = new PageId(fileAccessor.getFileId(),0);
     PageId dummyId = new PageId(new FileId("dummy.dat"),0);
     
-    SlottedPage p = ftUtils.getSlottedPage(fileAccessor);
+    SlottedPage p = ftUtils.getPage(fileAccessor);
 
     p.setId(dummyId);
     assertTrue( fileAccessor.getFile().readPage(p, id)

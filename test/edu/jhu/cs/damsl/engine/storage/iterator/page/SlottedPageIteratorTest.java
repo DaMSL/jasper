@@ -9,21 +9,24 @@ import org.junit.Before;
 import org.junit.Test;
 
 import edu.jhu.cs.damsl.engine.storage.Tuple;
+import edu.jhu.cs.damsl.engine.storage.file.SlottedHeapFile;
+import edu.jhu.cs.damsl.engine.storage.file.factory.SlottedStorageFileFactory;
 import edu.jhu.cs.damsl.engine.storage.page.SlottedPage;
 import edu.jhu.cs.damsl.engine.storage.page.SlottedPageHeader;
-import edu.jhu.cs.damsl.utils.SlottedPageTestUtils;
+import edu.jhu.cs.damsl.utils.PageTestUtils;
 
 public class SlottedPageIteratorTest {
 
-  private SlottedPageTestUtils ptUtils;
+  private PageTestUtils<SlottedPageHeader, SlottedPage, SlottedHeapFile> ptUtils;
   private List<Tuple> tuples;
   private List<SlottedPage> testPages;
 
   @Before
   public void setUp() {
-    ptUtils = new SlottedPageTestUtils();
+    ptUtils = new PageTestUtils<SlottedPageHeader, SlottedPage, SlottedHeapFile>(
+                new SlottedStorageFileFactory());
     tuples = ptUtils.getTuples();
-    testPages = ptUtils.generateSlottedPages(tuples);
+    testPages = ptUtils.generatePages(tuples);
   }
 
   void checkInitialIterator(SlottedPage p, SlottedPageIterator it) {

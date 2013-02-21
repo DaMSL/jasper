@@ -10,24 +10,30 @@ import org.junit.Test;
 
 import edu.jhu.cs.damsl.catalog.Schema;
 import edu.jhu.cs.damsl.engine.storage.Tuple;
+import edu.jhu.cs.damsl.engine.storage.file.ContiguousHeapFile;
+import edu.jhu.cs.damsl.engine.storage.file.factory.ContiguousStorageFileFactory;
 import edu.jhu.cs.damsl.engine.storage.page.ContiguousPage;
 import edu.jhu.cs.damsl.engine.storage.page.PageHeader;
 import edu.jhu.cs.damsl.utils.CommonTestUtils;
-import edu.jhu.cs.damsl.utils.ContiguousPageTestUtils;
+import edu.jhu.cs.damsl.utils.PageTestUtils;
 
 public class ContiguousPageTest {
 
-  private ContiguousPageTestUtils ptUtils;
+  private final static int numTuples = 5;
   private Schema schema;
   private List<Tuple> tuples;
   private boolean fillBackward = false;
+  private PageTestUtils<PageHeader, ContiguousPage, ContiguousHeapFile> ptUtils;
   
-  private final static int numTuples = 5;
-
   @Before
   public void setUp() {
-    ptUtils = new ContiguousPageTestUtils();
     schema = CommonTestUtils.getIIISchema();
+
+    ContiguousStorageFileFactory factory = new ContiguousStorageFileFactory();
+    byte flags = fillBackward? PageHeader.FILL_BACKWARD : (byte) 0x0;
+    factory.getPageFactory().setConfiguration(schema, flags);
+    ptUtils = new PageTestUtils<PageHeader, ContiguousPage, ContiguousHeapFile>(factory);
+
     tuples = ptUtils.getTuples(schema, numTuples);
   }
 
@@ -53,8 +59,7 @@ public class ContiguousPageTest {
   // getTuple at a specific offset.
   @Test
   public void getTest() {
-    List<ContiguousPage> dataPages =
-        ptUtils.generateContiguousPages(fillBackward, schema, tuples);
+    List<ContiguousPage> dataPages = ptUtils.generatePages(tuples);
 
     ListIterator<Tuple> tupleIt = tuples.listIterator();
 
@@ -96,7 +101,7 @@ public class ContiguousPageTest {
     for (Tuple t : tuples) {
       // Get a new page if the previous one is full.
       if ( p == null || p.getHeader().getFreeSpace() < t.size()) {
-        p = ptUtils.getContiguousPage(schema, fillBackward);
+        p = ptUtils.getPage();
       }
 
       assertTrue ( p != null && p.getHeader() != null );
@@ -124,8 +129,7 @@ public class ContiguousPageTest {
   // Similar to the putTuple test above, except with insertTuple.
   @Test
   public void insertTest() {
-    List<ContiguousPage> dataPages =
-        ptUtils.generateContiguousPages(fillBackward, schema, tuples);
+    List<ContiguousPage> dataPages = ptUtils.generatePages(tuples);
     List<Tuple> newTuples = ptUtils.getTuples(schema, numTuples);
     ListIterator<Tuple> tupleIt = newTuples.listIterator();
     
@@ -179,8 +183,7 @@ public class ContiguousPageTest {
 
   @Test
   public void removeTest() {
-    List<ContiguousPage> dataPages =
-        ptUtils.generateContiguousPages(fillBackward, schema, tuples);
+    List<ContiguousPage> dataPages = ptUtils.generatePages(tuples);
     
     for (ContiguousPage p : dataPages) {
       PageHeader hdr = p.getHeader();
@@ -229,8 +232,7 @@ public class ContiguousPageTest {
 
   @Test
   public void clearTest() {
-    List<ContiguousPage> dataPages =
-        ptUtils.generateContiguousPages(fillBackward, schema, tuples);
+    List<ContiguousPage> dataPages = ptUtils.generatePages(tuples);
     
     for (ContiguousPage p : dataPages) {
       PageHeader hdr = p.getHeader();

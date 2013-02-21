@@ -12,6 +12,18 @@ import edu.jhu.cs.damsl.engine.storage.page.PageHeader;
 
 public class ContiguousPageFactory implements PageFactory<PageHeader, ContiguousPage>
 {
+  Schema schema;
+  byte flags;
+
+  public ContiguousPageFactory() {}
+  
+  public ContiguousPageFactory(Schema sch, byte fl) { setConfiguration(sch, fl); }
+
+  public void setConfiguration(Schema sch, byte fl) {
+    schema = sch;
+    flags = fl;
+  }
+
   public ContiguousPage getPage(Integer id, ChannelBuffer buf, Schema sch, byte flags) {
   	return new ContiguousPage(id, buf, sch, flags);
   }
@@ -34,6 +46,14 @@ public class ContiguousPageFactory implements PageFactory<PageHeader, Contiguous
   
   public ContiguousPage getPage(PageId id, ChannelBuffer buf, byte flags) {
 	  return new ContiguousPage(id, buf, flags);
+  }
+
+  public ContiguousPage getPage(Integer id, ChannelBuffer buf) {
+    return new ContiguousPage(id, buf, schema, flags);
+  }
+  
+  public ContiguousPage getPage(PageId id, ChannelBuffer buf) {
+    return new ContiguousPage(id, buf, schema, flags);
   }
 
 }

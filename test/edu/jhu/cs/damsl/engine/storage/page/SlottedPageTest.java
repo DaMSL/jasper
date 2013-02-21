@@ -10,19 +10,22 @@ import org.junit.Test;
 
 import edu.jhu.cs.damsl.catalog.Schema;
 import edu.jhu.cs.damsl.engine.storage.Tuple;
+import edu.jhu.cs.damsl.engine.storage.file.SlottedHeapFile;
+import edu.jhu.cs.damsl.engine.storage.file.factory.SlottedStorageFileFactory;
 import edu.jhu.cs.damsl.engine.storage.page.SlottedPage;
 import edu.jhu.cs.damsl.engine.storage.page.SlottedPageHeader;
 import edu.jhu.cs.damsl.utils.CommonTestUtils;
-import edu.jhu.cs.damsl.utils.SlottedPageTestUtils;
+import edu.jhu.cs.damsl.utils.PageTestUtils;
 
 public class SlottedPageTest {
 
-  private SlottedPageTestUtils ptUtils;
+  private PageTestUtils<SlottedPageHeader, SlottedPage, SlottedHeapFile> ptUtils;
   private List<Tuple> tuples;
 
   @Before
   public void setUp() {
-    ptUtils = new SlottedPageTestUtils();
+    ptUtils = new PageTestUtils<SlottedPageHeader, SlottedPage, SlottedHeapFile>(
+                new SlottedStorageFileFactory());
     tuples = ptUtils.getTuples();
   }
 
@@ -60,7 +63,7 @@ public class SlottedPageTest {
 
   @Test
   public void getTest() {
-    List<SlottedPage> dataPages = ptUtils.generateSlottedPages(tuples);
+    List<SlottedPage> dataPages = ptUtils.generatePages(tuples);
     ListIterator<Tuple> tupleIt = tuples.listIterator();
 
     for (SlottedPage p : dataPages) {
@@ -88,7 +91,7 @@ public class SlottedPageTest {
     for (Tuple t : tuples) {
       // Get a new page if the previous one is full.
       if ( p == null || p.getHeader().getFreeSpace() < t.size()) {
-        p = ptUtils.getSlottedPage();
+        p = ptUtils.getPage();
       }
 
       assertTrue ( p != null && p.getHeader() != null );
@@ -124,7 +127,7 @@ public class SlottedPageTest {
 
   @Test
   public void insertTest() {
-    List<SlottedPage> dataPages = ptUtils.generateSlottedPages(tuples);
+    List<SlottedPage> dataPages = ptUtils.generatePages(tuples);
     List<Tuple> newTuples = ptUtils.getTuples();
     ListIterator<Tuple> tupleIt = newTuples.listIterator();
     
@@ -159,7 +162,7 @@ public class SlottedPageTest {
   
   @Test
   public void removeTest() {
-    List<SlottedPage> dataPages = ptUtils.generateSlottedPages(tuples);
+    List<SlottedPage> dataPages = ptUtils.generatePages(tuples);
     
     for (SlottedPage p : dataPages) {
       SlottedPageHeader hdr = p.getHeader();
@@ -175,7 +178,7 @@ public class SlottedPageTest {
 
   @Test
   public void clearTest() {
-    List<SlottedPage> dataPages = ptUtils.generateSlottedPages(tuples);
+    List<SlottedPage> dataPages = ptUtils.generatePages(tuples);
     
     for (SlottedPage p : dataPages) {
       SlottedPageHeader hdr = p.getHeader();

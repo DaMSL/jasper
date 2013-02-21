@@ -17,7 +17,11 @@ public class SlottedPage extends Page<SlottedPageHeader> {
   public static final HeaderFactory<SlottedPageHeader> headerFactory 
     = new SlottedPageHeaderFactory();
 
-  // Commonly used constructor.
+  // Commonly used constructors.
+  public SlottedPage(Integer id, ChannelBuffer buf) {
+    super(id, buf, PageHeader.FILL_BACKWARD);
+  }
+
   public SlottedPage(PageId id, ChannelBuffer buf) {
     super(id, buf, PageHeader.FILL_BACKWARD);
   }

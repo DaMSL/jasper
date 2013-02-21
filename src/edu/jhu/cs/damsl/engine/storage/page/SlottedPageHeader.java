@@ -38,8 +38,20 @@ public class SlottedPageHeader extends PageHeader {
 
   public SlottedPageHeader(byte flags, short tupleSize, ChannelBuffer buf)
   {
-    this(flags, tupleSize, (short) buf.capacity(),
-         (short) (tupleSize <= 0? -1 : buf.capacity() / tupleSize), (short) 0);
+    this(flags, tupleSize, (short) buf.capacity());
+  }
+
+  public SlottedPageHeader(byte flags, short tupleSize, short bufCapacity)
+  {
+    super(flags, tupleSize, bufCapacity);
+    
+    short numSlots = 
+      (tupleSize <= 0? Integer.valueOf(-1).shortValue() : 
+        Integer.valueOf(
+          (bufCapacity - (super.getHeaderSize()+((Short.SIZE>>3)*2)))
+              / (tupleSize + SLOT_SIZE)).shortValue());
+    
+    resetHeader(numSlots, (short) 0);
   }
 
   public SlottedPageHeader(byte flags, short tupleSz, short bufCapacity,

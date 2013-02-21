@@ -11,21 +11,23 @@ import org.junit.Test;
 
 import edu.jhu.cs.damsl.engine.storage.Tuple;
 import edu.jhu.cs.damsl.engine.storage.accessor.HeapFileAccessor;
-import edu.jhu.cs.damsl.engine.storage.iterator.file.heap.SlottedHeapFileIterator;
 import edu.jhu.cs.damsl.engine.storage.file.SlottedHeapFile;
+import edu.jhu.cs.damsl.engine.storage.file.factory.SlottedStorageFileFactory;
+import edu.jhu.cs.damsl.engine.storage.iterator.file.heap.SlottedHeapFileIterator;
 import edu.jhu.cs.damsl.engine.storage.page.SlottedPage;
 import edu.jhu.cs.damsl.engine.storage.page.SlottedPageHeader;
 import edu.jhu.cs.damsl.utils.FileTestUtils;
 
 public class SlottedHeapFileIteratorTest {
 
-  private FileTestUtils ftUtils;
+  private FileTestUtils<SlottedPageHeader, SlottedPage, SlottedHeapFile> ftUtils;
   private List<Tuple> tuples;
   
   @Before
   public void setUp() {
     try {
-      ftUtils = new FileTestUtils(false);
+      ftUtils = new FileTestUtils<SlottedPageHeader, SlottedPage, SlottedHeapFile>(
+                  new SlottedStorageFileFactory(), false);
       tuples = ftUtils.getTuples();
       
       HeapFileAccessor<SlottedPageHeader, SlottedPage, SlottedHeapFile> accessor =

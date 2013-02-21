@@ -9,25 +9,33 @@ import org.junit.Test;
 
 import edu.jhu.cs.damsl.catalog.Schema;
 import edu.jhu.cs.damsl.engine.storage.Tuple;
+import edu.jhu.cs.damsl.engine.storage.file.ContiguousHeapFile;
+import edu.jhu.cs.damsl.engine.storage.file.factory.ContiguousStorageFileFactory;
 import edu.jhu.cs.damsl.engine.storage.page.ContiguousPage;
 import edu.jhu.cs.damsl.engine.storage.page.PageHeader;
 import edu.jhu.cs.damsl.utils.CommonTestUtils;
-import edu.jhu.cs.damsl.utils.ContiguousPageTestUtils;
+import edu.jhu.cs.damsl.utils.PageTestUtils;
 
 public class ContiguousPageIteratorTest {
 
-  private ContiguousPageTestUtils ptUtils;
+  private static final int numTuples = 5;
+  private boolean fillBackward = false;
   private Schema schema;
   private List<Tuple> tuples;
   private List<ContiguousPage> testPages;
-  private static final int numTuples = 5;
+  private PageTestUtils<PageHeader, ContiguousPage, ContiguousHeapFile> ptUtils;
 
   @Before
   public void setUp() {
-    ptUtils = new ContiguousPageTestUtils();
     schema = CommonTestUtils.getLIDSchema();
+
+    ContiguousStorageFileFactory factory = new ContiguousStorageFileFactory();
+    byte flags = fillBackward? PageHeader.FILL_BACKWARD : (byte) 0x0;
+    factory.getPageFactory().setConfiguration(schema, flags);
+    ptUtils = new PageTestUtils<PageHeader, ContiguousPage, ContiguousHeapFile>(factory);
+
     tuples = ptUtils.getTuples(schema, numTuples);
-    testPages = ptUtils.generateContiguousPages(false, schema, tuples);
+    testPages = ptUtils.generatePages(tuples);
   }
 
   void checkInitialIterator(ContiguousPage p, ContiguousPageIterator it) {

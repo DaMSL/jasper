@@ -6,6 +6,7 @@ import edu.jhu.cs.damsl.catalog.Catalog;
 import edu.jhu.cs.damsl.catalog.Schema;
 import edu.jhu.cs.damsl.catalog.Defaults.SizeUnits;
 import edu.jhu.cs.damsl.catalog.Schema.Field;
+import edu.jhu.cs.damsl.engine.dbms.DbEngine;
 import edu.jhu.cs.damsl.engine.storage.DbBufferPool;
 import edu.jhu.cs.damsl.engine.storage.StorageEngine;
 import edu.jhu.cs.damsl.engine.storage.Tuple;
@@ -21,26 +22,20 @@ public class CommonTestUtils<HeaderType extends PageHeader,
                              PageType   extends Page<HeaderType>,
                              FileType   extends StorageFile<HeaderType, PageType>>
 {
-  protected StorageEngine<HeaderType, PageType, FileType> storage;
-  protected DbBufferPool<HeaderType, PageType, FileType> pool;
+  protected DbEngine<HeaderType, PageType, FileType> dbms;
   protected StandardGenerator dataGen;
 
   public CommonTestUtils(StorageFileFactory<HeaderType, PageType, FileType> f) {
-    Catalog c = new Catalog();
-    
-    storage = new StorageEngine<HeaderType, PageType, FileType>(c, f);    
-    
-    pool = new DbBufferPool<HeaderType, PageType, FileType>(
-                storage, 20, SizeUnits.Mega, 4, SizeUnits.Kilo);
-    
+    dbms = new DbEngine<HeaderType, PageType, FileType>(f);
+    f.initialize(dbms);
     dataGen = new StandardGenerator();
   }
 
   public StorageEngine<HeaderType, PageType, FileType>
-  getStorage() { return storage; }
+  getStorage() { return dbms.getStorageEngine(); }
 
   public DbBufferPool<HeaderType, PageType, FileType>
-  getPool() { return pool; }
+  getPool() { return dbms.getStorageEngine().getBufferPool(); }
 
   public StandardGenerator getDataGenerator() { return dataGen; }
 

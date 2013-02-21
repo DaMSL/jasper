@@ -10,33 +10,33 @@ import edu.jhu.cs.damsl.catalog.Defaults;
 import edu.jhu.cs.damsl.catalog.identifiers.PageId;
 import edu.jhu.cs.damsl.engine.storage.Tuple;
 import edu.jhu.cs.damsl.engine.storage.accessor.PageFileAccessor;
-import edu.jhu.cs.damsl.engine.storage.file.SlottedHeapFile;
-import edu.jhu.cs.damsl.engine.storage.file.factory.SlottedStorageFileFactory;
-import edu.jhu.cs.damsl.engine.storage.page.SlottedPage;
-import edu.jhu.cs.damsl.engine.storage.page.SlottedPageHeader;
+import edu.jhu.cs.damsl.engine.storage.file.StorageFile;
+import edu.jhu.cs.damsl.engine.storage.file.factory.StorageFileFactory;
+import edu.jhu.cs.damsl.engine.storage.page.Page;
+import edu.jhu.cs.damsl.engine.storage.page.PageHeader;
 
-public class FileTestUtils
-  extends CommonTestUtils<SlottedPageHeader, SlottedPage, SlottedHeapFile>
+public class FileTestUtils<HeaderType extends PageHeader,
+                           PageType   extends Page<HeaderType>,
+                           FileType   extends StorageFile<HeaderType, PageType>>
+  extends CommonTestUtils<HeaderType, PageType, FileType>
 {
 
-  protected SlottedHeapFile testFile;
+  protected FileType testFile;
 
-  public FileTestUtils(boolean varSchema)
+  public FileTestUtils(StorageFileFactory<HeaderType, PageType, FileType> factory,
+                       boolean varSchema)
       throws FileNotFoundException
   {
-    super(new SlottedStorageFileFactory());
+    super(factory);
     String fName = "test.dat";
-    testFile = new SlottedHeapFile(
-        storage, fName, pool.getPageSize(), Defaults.getDefaultFileSize(),
-        varSchema? null : CommonTestUtils.getLIDSchema());
+    testFile = factory.getFile(fName, varSchema? null : CommonTestUtils.getLIDSchema());
   }
   
-  public SlottedHeapFile getFile() { return testFile; }
+  public FileType getFile() { return testFile; }
 
-  public SlottedPage getSlottedPage(
-      PageFileAccessor<SlottedPageHeader, SlottedPage> fileAccessor)
+  public PageType getPage(PageFileAccessor<HeaderType, PageType> fileAccessor)
   {
-    SlottedPage p = null;
+    PageType p = null;
     try { p = fileAccessor.getPage();
     } catch (InterruptedException e) { e.printStackTrace(); }
     
@@ -44,19 +44,19 @@ public class FileTestUtils
     return p;
   }
   
-  public List<SlottedPage> generateSlottedPages(
-      PageFileAccessor<SlottedPageHeader, SlottedPage> pageAccessor,
-      List<Tuple> tuples)
+  public List<PageType> generatePages(
+                          PageFileAccessor<HeaderType, PageType> pageAccessor,
+                          List<Tuple> tuples)
   {
-    LinkedList<SlottedPage> r = new LinkedList<SlottedPage>();
+    LinkedList<PageType> r = new LinkedList<PageType>();
 
-    SlottedPage p = getSlottedPage(pageAccessor);
+    PageType p = getPage(pageAccessor);
     r.add(p);
 
     for (Tuple t : tuples) {
       // Get a new page if the previous one is full.
       if ( p.getHeader().getFreeSpace() < t.size()) {
-        p = getSlottedPage(pageAccessor);
+        p = getPage(pageAccessor);
         r.add(p);
       }
       
@@ -66,24 +66,22 @@ public class FileTestUtils
     return r;
   }
 
-  public void writePages(List<SlottedPage> pages) {
-    for (SlottedPage p : pages) {
+  public void writePages(List<PageType> pages) {
+    for (PageType p : pages) {
       PageId newId = new PageId(testFile.fileId(), p.getId().pageNum());
       p.setId(newId);
-      assertTrue ( testFile.writePage(p) == pool.getPageSize());
+      assertTrue ( testFile.writePage(p) == getPool().getPageSize());
     }
   }
   
-  public void writeTuples(
-      PageFileAccessor<SlottedPageHeader, SlottedPage> pageAccessor,
-      List<Tuple> tuples)
+  public void writeTuples(PageFileAccessor<HeaderType, PageType> pageAccessor,
+                          List<Tuple> tuples)
   {
-    List<SlottedPage> pages = generateSlottedPages(pageAccessor, tuples);
+    List<PageType> pages = generatePages(pageAccessor, tuples);
     writePages(pages);
   }
   
-  public void writeRandomTuples(
-      PageFileAccessor<SlottedPageHeader, SlottedPage> pageAccessor)
+  public void writeRandomTuples(PageFileAccessor<HeaderType, PageType> pageAccessor)
   {
     List<Tuple> tuples = getTuples();
     writeTuples(pageAccessor, tuples);

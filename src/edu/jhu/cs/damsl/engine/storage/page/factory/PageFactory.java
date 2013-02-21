@@ -21,4 +21,7 @@ public interface PageFactory<HeaderType extends PageHeader,
   public PageType getPage(Integer id, ChannelBuffer buf, byte flags);
   public PageType getPage(PageId id, ChannelBuffer buf, byte flags);
 
+  public PageType getPage(Integer id, ChannelBuffer buf);
+  public PageType getPage(PageId id, ChannelBuffer buf);
+
 }
