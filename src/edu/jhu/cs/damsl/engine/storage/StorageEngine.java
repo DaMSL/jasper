@@ -201,40 +201,6 @@ public class StorageEngine<IdType     extends TupleId,
     }
   }
 
-  // TODO: finish
-  // Update a specific tuple in a relation.
-  public void updateTuple(TransactionId txn, TableId rel, IdType old, Tuple update)
-    throws TransactionAbortException
-  {
-    checkTupleId(rel, old);
-    
-    // If the tuple's page is not in the buffer pool, fetch it.
-    PageType p = old.pageId() == null ?
-      null : getPage(txn, old.pageId(), Page.Permissions.WRITE);
-
-    if ( p == null ) {
-      logger.error("Invalid page during tuple deletion");
-      throw new TransactionAbortException();      
-    }
-
-    // Update the tuple in memory.
-    // TODO
-  }
-
-  // TODO: finish
-  // Updates all tuples in the relation matching the given tuple.
-  public void updateTuple(TransactionId txn, TableId rel, Tuple old, Tuple update)
-    throws TransactionAbortException
-  {
-    // TODO: index scan if possible rather than sequential scan.
-    StorageIterator relIt = scanRelation(txn, rel, Page.Permissions.WRITE);
-    while ( relIt.hasNext() ) {
-      Tuple rt = relIt.next();
-      if ( rt.equals(old) ) { /* TODO update */ }
-    }
-
-  }
-
   // Helper methods for Tuple DML.
   static int tuplesInserted = 0;
   
