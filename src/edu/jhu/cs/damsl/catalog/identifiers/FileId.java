@@ -11,37 +11,57 @@ import edu.jhu.cs.damsl.language.core.types.StringType;
 
 public class FileId implements Addressable, Serializable {
 
-  protected File filePath;
+  public enum FileKind { Relation, Index, Temporary };
+
+  private static Integer counter = 0;
+  protected int fileId;
+  protected FileKind fileKind;
+  
   protected int pageSize;
   protected int numPages;
   protected long capacity;
 
-  public FileId(String fileName) {
-    this(new File(fileName).getAbsoluteFile(), 0, 0, Defaults.getDefaultFileSize());
+  // We now use an implicit file name, that can always be
+  // derived from the fileId integer.
+  protected File filePath;
+
+  public FileId(FileKind k) {
+    this(k, 0, 0, Defaults.getDefaultFileSize());
   }
 
-  public FileId(File f) { 
-    this(f.getAbsolutePath(), 0, 0, Defaults.getDefaultFileSize());
+  public FileId(FileKind k, int pageSize, int numPages, long capacity) {
+    this(counter++, k, pageSize, numPages, capacity);
   }
 
-  public FileId(String fileName, int pageSize, int numPages, long capacity) {
-    this(new File(fileName).getAbsoluteFile(), pageSize, numPages, capacity);
-  }
-
-  public FileId(File f, int pageSz, int nPages, long cap) {
-    filePath = f;
+  protected FileId(int fId, FileKind k, int pageSz, int nPages, long cap) {
+    fileId   = fId;
+    fileKind = k;
     pageSize = pageSz;
     numPages = nPages;
     capacity = cap;
+    filePath = new File(getFileNamePrefix(fileKind)+Integer.toString(fileId));
+  }
+
+  public String toString() { return getAddressString()+"("+getAddress()+")"; }
+
+  @Override
+  public boolean equals(Object o) {
+    if ( o == null || !(o instanceof FileId) ) { return false; }
+    return o == this || (((FileId) o).fileId == fileId);
   }
 
   @Override
-  public int getAddress() { return filePath.hashCode(); }
+  public int hashCode() { return Integer.valueOf(fileId).hashCode(); }
+
+  @Override
+  public int getAddress() { return hashCode(); }
 
   @Override
   public String getAddressString() { return filePath.getAbsolutePath(); }
 
-  public File getFile() { return filePath; }
+  public File file() { return filePath; }
+
+  public FileKind fileKind() { return fileKind; }
 
   public int pageSize() { return pageSize; }
 
@@ -55,44 +75,74 @@ public class FileId implements Addressable, Serializable {
 
   public void setCapacity(long cap) { capacity = cap; }
 
-
-  // Buffer I/O
-  // TODO: use an external file map of file names to integers, and only
-  // write out integer file ids.
-  public static FileId read(ChannelBuffer buf) {
-    FileId r = null;
-    int length = buf.readInt();
-    if ( length > 0 ) {
-      String fName = buf.readSlice(length).toString(Defaults.defaultCharset);
-      int pageSize = buf.readInt();
-      int numPages = buf.readInt();
-      long capacity = buf.readLong();
-      r = new FileId(fName, pageSize, numPages, capacity);
+  // File naming helpers.
+  public static String getFileNamePrefix(FileKind k) {
+    String r = Defaults.defaultDbFilePrefix+"-";
+    switch (k) {
+      case Index: r += "idx"; break;
+      case Temporary: r += "tmp"; break;
+      case Relation:
+      default:
+        r += "rel"; break;
     }
     return r;
   }
-  
+
+  // Buffer I/O
+  public static byte packFileKind(FileKind k) {
+    byte r = (byte) 0x0;
+    switch (k) {
+      case Index: r = (byte) 0x4; break;
+      case Temporary: r = (byte) 0x2; break;
+      case Relation:
+      default:
+        r = (byte) 0x1; break;
+    }
+    return r;
+  }
+
+  public static FileKind unpackFileKind(byte b) {
+    FileKind r = null;
+    if ( b == (byte) 0x4 )      { r = FileKind.Index; }
+    else if ( b == (byte) 0x2 ) { r = FileKind.Temporary; }
+    else if ( b == (byte) 0x1 ) { r = FileKind.Relation; }
+    return r;
+  }
+
+  public static FileId read(ChannelBuffer buf) {
+    FileId r = null;
+    byte done = buf.readByte();
+    if ( done == VALID_ID ) {
+      FileKind fileKind = unpackFileKind(buf.readByte());
+      int fileId        = buf.readInt();
+      int pageSize      = buf.readInt();
+      int numPages      = buf.readInt();
+      long capacity     = buf.readLong();
+      r = new FileId(fileId, fileKind, pageSize, numPages, capacity);
+    }
+    return r;
+  }
+
   public void write(ChannelBuffer buf) {
-    String path = filePath.getAbsolutePath();
-    buf.writeInt(StringType.getStringByteLength(path));
-    buf.writeBytes(path.getBytes(Defaults.defaultCharset));
+    buf.writeByte(VALID_ID);
+    buf.writeByte(packFileKind(fileKind));
+    buf.writeInt(fileId);
     buf.writeInt(pageSize);
     buf.writeInt(numPages);
-    buf.writeLong(capacity);
+    buf.writeLong(capacity);    
   }
-  
+
   public static void writeEmpty(ChannelBuffer buf) {
-    buf.writeInt(INVALID_FILE);
+    buf.writeByte(EMPTY_ID);
   }
-  
+
   public short size() {
-    return (short) (EMPTY_SIZE +
-          StringType.getStringByteLength(filePath.getAbsolutePath()));
+    return Integer.valueOf((Byte.SIZE+Integer.SIZE*3+Long.SIZE)>>3).shortValue();
   }
 
-  public String toString() { return getAddressString()+"("+getAddress()+")"; }
+  public static final byte EMPTY_ID = (byte) 0x1;
+  public static final byte VALID_ID = (byte) 0x0;
 
-  public static Integer INVALID_FILE = -1;
-  public static Integer EMPTY_SIZE = ((Integer.SIZE*3+Long.SIZE)>>3);
+  public static final short EMPTY_SIZE = Integer.valueOf(Byte.SIZE>>3).shortValue();
 
 }

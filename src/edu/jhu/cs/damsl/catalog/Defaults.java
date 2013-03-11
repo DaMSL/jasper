@@ -33,9 +33,16 @@ public class Defaults {
   // Core engine parameters.
   public enum SizeUnits { Kilo, Mega, Giga };
 
+  // Database files.
+  public static String defaultDbFilePrefix = "jdbf";
+
   // Default buffer pool size
   public static Integer defaultBufferPoolSize = 20;
   public static SizeUnits defaultBufferPoolUnit = SizeUnits.Mega;
+
+  // Default index page pool size
+  public static Integer defaultIndexBufferPoolSize = 20;
+  public static SizeUnits defaultIndexBufferPoolUnit = SizeUnits.Mega;
   
   // Default relation-page tracking cache capacity
   public static Integer defaultPoolContentCacheSize = 10000;

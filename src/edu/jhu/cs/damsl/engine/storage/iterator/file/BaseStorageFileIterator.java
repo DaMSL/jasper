@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory;
 
 import edu.jhu.cs.damsl.catalog.identifiers.FileId;
 import edu.jhu.cs.damsl.catalog.identifiers.PageId;
+import edu.jhu.cs.damsl.catalog.identifiers.TupleId;
+import edu.jhu.cs.damsl.engine.EngineException;
 import edu.jhu.cs.damsl.engine.storage.Tuple;
 import edu.jhu.cs.damsl.engine.storage.accessor.PageFileAccessor;
 import edu.jhu.cs.damsl.engine.storage.iterator.page.PageIterator;
@@ -13,12 +15,13 @@ import edu.jhu.cs.damsl.engine.storage.page.Page;
 import edu.jhu.cs.damsl.engine.storage.page.PageHeader;
 
 public abstract class BaseStorageFileIterator<
+                        IdType extends TupleId,
                         HeaderType extends PageHeader,
-                        PageType extends Page<HeaderType>>
-                      implements StorageFileIterator<HeaderType, PageType>
+                        PageType extends Page<IdType, HeaderType>>
+                      implements StorageFileIterator<IdType, HeaderType, PageType>
 {
   protected static final Logger logger = LoggerFactory.getLogger(StorageFileIterator.class);
-  protected PageFileAccessor<HeaderType, PageType> paged;
+  protected PageFileAccessor<IdType, HeaderType, PageType> paged;
   protected FileId fileId;
 
   // Locally cached copy of the number of pages in the file. Thus, this iterator
@@ -31,12 +34,28 @@ public abstract class BaseStorageFileIterator<
   // support compaction.
   protected int filePages;
 
-  protected PageIterator<HeaderType, PageType> current;
-  protected PageIterator<HeaderType, PageType> returned;
+  protected PageIterator<IdType, HeaderType, PageType> current;
+  protected PageIterator<IdType, HeaderType, PageType> returned;
 
-  public BaseStorageFileIterator(PageFileAccessor<HeaderType, PageType> rdr) {
+  protected IdType start, end;
+
+  public BaseStorageFileIterator(
+            PageFileAccessor<IdType, HeaderType, PageType> rdr)
+  {
     paged = rdr;
     fileId = rdr.getFileId();
+    start = end = null;
+    reset();
+  }
+
+  public BaseStorageFileIterator(
+            PageFileAccessor<IdType, HeaderType, PageType> rdr,
+            IdType start, IdType end)
+  {
+    paged = rdr;
+    fileId = rdr.getFileId();
+    this.start = start;
+    this.end = end;
     reset();
   }
 
@@ -48,14 +67,50 @@ public abstract class BaseStorageFileIterator<
 
   public PageId nextPageId() {
     PageId r = null;
-    if ( current == null ) { r = new PageId(fileId, 0); }
-    else if ( current != null && current.getId().pageNum()+1 < filePages ) {
-      r = new PageId(fileId, current.getId().pageNum()+1);
+    if ( current == null ) { 
+      r = start == null ? new PageId(fileId, 0) : start.pageId();
+    } 
+    // TODO change to PageId.equals()
+    // Move on to the next page only if we are not at the desired end
+    // and pages remain in the file.
+    else if ( (end != null && current.getPageId() != end.pageId())
+              && (current.getPageId().pageNum()+1 < filePages) )
+    {
+      r = new PageId(fileId, current.getPageId().pageNum()+1);
     }
     return r;
   }
   
-  public abstract void nextValidTuple();
+  @SuppressWarnings("unchecked")
+  public void nextValidTuple() {
+    PageId id = null;
+    while ( (current == null || !current.hasNext())
+              && (id = nextPageId()) != null )
+    {
+      PageType p = null;
+      try {
+        p = paged.getPage(id);
+      } catch (EngineException e) {
+        logger.warn("could not read page {}", id);
+      }
+
+      if ( p == null ) { current = null; }
+      else if ( start == null && end == null ) { 
+        current = (PageIterator<IdType, HeaderType, PageType>) p.iterator();
+      } else {
+        // TODO: change to PageId.equals()
+        IdType s = id == start.pageId()? start : null;
+        IdType e = id == end.pageId()? end : null;
+        current = (PageIterator<IdType, HeaderType, PageType>) p.iterator(s, e);
+      }
+      
+      if ( current == null && p != null ) {
+        // Invoke release before moving on to the next page. It is left
+        // to the reader to determine what actually happens on release.
+        paged.releasePage(p);
+      }
+    }
+  }
 
   public void markReturned() { returned = current; }
 
@@ -74,12 +129,17 @@ public abstract class BaseStorageFileIterator<
   }
 
   public void remove() {
+    // Currently, we cannot remove tuples via this iterator if it
+    // has a desired endpoint. This would require updating the endpoint
+    // on removals.
+    if ( end != null ) { throw new UnsupportedOperationException(); }
+
     if ( returned != null && returned.isReturnedValid() ) {
       returned.remove();
       returned = null;
     }
   }
 
-  public PageFileAccessor<HeaderType, PageType> getAccessor() { return paged; } 
+  public PageFileAccessor<IdType, HeaderType, PageType> getAccessor() { return paged; } 
 
 }

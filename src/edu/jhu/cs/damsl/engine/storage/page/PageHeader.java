@@ -85,7 +85,7 @@ public class PageHeader {
   
   // Returns the size of the disk-based header repr, in bytes.
   public short getHeaderSize() {
-    return Integer.valueOf(1+((Short.SIZE>>3)*3)).shortValue();
+    return Integer.valueOf(1+((Short.SIZE>>3)*4)).shortValue();
   }
 
   public short getTupleSize() { return tupleSize; }

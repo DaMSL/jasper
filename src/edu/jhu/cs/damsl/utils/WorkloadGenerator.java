@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import edu.jhu.cs.damsl.catalog.identifiers.FileId;
 import edu.jhu.cs.damsl.catalog.identifiers.PageId;
 import edu.jhu.cs.damsl.catalog.identifiers.TableId;
+import edu.jhu.cs.damsl.catalog.identifiers.TupleId;
 import edu.jhu.cs.damsl.engine.dbms.DbEngine;
 import edu.jhu.cs.damsl.engine.storage.StorageEngine;
 import edu.jhu.cs.damsl.engine.storage.file.StorageFile;
@@ -16,18 +17,19 @@ import edu.jhu.cs.damsl.engine.storage.page.Page;
 import edu.jhu.cs.damsl.engine.storage.page.PageHeader;
 import edu.jhu.cs.damsl.engine.storage.page.SlottedPage;
 
-public class WorkloadGenerator<HeaderType extends PageHeader,
-                               PageType extends Page<HeaderType>,
-                               FileType extends StorageFile<HeaderType, PageType>>
+public class WorkloadGenerator<IdType     extends TupleId,
+                               HeaderType extends PageHeader,
+                               PageType   extends Page<IdType,HeaderType>,
+                               FileType   extends StorageFile<IdType, HeaderType, PageType>>
 {
   protected static final Logger logger = LoggerFactory.getLogger(WorkloadGenerator.class);
 
-  DbEngine<HeaderType, PageType, FileType> dbms;
-  StorageEngine<HeaderType, PageType, FileType> storage;
+  DbEngine<IdType, HeaderType, PageType, FileType> dbms;
+  StorageEngine<IdType, HeaderType, PageType, FileType> storage;
 
   public enum Workload { Sequential, HalfHalf, MostlySequential, MostlyRandom }
 
-  public WorkloadGenerator(DbEngine<HeaderType, PageType, FileType> _dbms) {
+  public WorkloadGenerator(DbEngine<IdType, HeaderType, PageType, FileType> _dbms) {
     this.dbms = _dbms;
     this.storage = dbms.getStorageEngine();
   }

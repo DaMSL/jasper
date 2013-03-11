@@ -20,18 +20,22 @@ public class TableId implements Durable, Serializable {
     relFiles = new LinkedList<FileId>();
   }
 
+  public String name() { return relName; }
+  public List<FileId> files() { return relFiles; }
+
   @Override
-  public int getAddress() {
-    return relId;
+  public boolean equals(Object o) {
+    if ( o == null || !(o instanceof TableId) ) { return false; }
+    return o == this || (((TableId) o).relId == relId);
   }
 
   @Override
-  public String getAddressString() {
-    return relName+"("+relId+")";
-  }
+  public int hashCode() { return relId; }
 
-  public String getName() { return relName; }
+  @Override
+  public int getAddress() { return hashCode(); }
 
-  public List<FileId> getFiles() { return relFiles; }
+  @Override
+  public String getAddressString() { return relName+"("+relId+")"; }
 
 }

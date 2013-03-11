@@ -2,6 +2,7 @@ package edu.jhu.cs.damsl.engine.storage.accessor;
 
 import edu.jhu.cs.damsl.catalog.identifiers.FileId;
 import edu.jhu.cs.damsl.catalog.identifiers.PageId;
+import edu.jhu.cs.damsl.catalog.identifiers.TupleId;
 import edu.jhu.cs.damsl.catalog.identifiers.TransactionId;
 import edu.jhu.cs.damsl.engine.storage.StorageEngine;
 import edu.jhu.cs.damsl.engine.storage.file.StorageFile;
@@ -9,17 +10,18 @@ import edu.jhu.cs.damsl.engine.storage.page.Page;
 import edu.jhu.cs.damsl.engine.storage.page.PageHeader;
 
 public class BufferedPageAccessor<
+                IdType extends TupleId,
                 HeaderType extends PageHeader,
-                PageType extends Page<HeaderType>,
-                FileType extends StorageFile<HeaderType, PageType>>
-              implements PageFileAccessor<HeaderType, PageType>
+                PageType extends Page<IdType, HeaderType>,
+                FileType extends StorageFile<IdType, HeaderType, PageType>>
+              implements PageFileAccessor<IdType, HeaderType, PageType>
 {
-  StorageEngine<HeaderType, PageType, FileType> storage;
+  StorageEngine<IdType, HeaderType, PageType, FileType> storage;
   TransactionId txn;
   Page.Permissions permissions;
   FileType file;
 
-  public BufferedPageAccessor(StorageEngine<HeaderType, PageType, FileType> e,
+  public BufferedPageAccessor(StorageEngine<IdType, HeaderType, PageType, FileType> e,
                               TransactionId t, Page.Permissions perm, FileType f)
   {
     storage = e;

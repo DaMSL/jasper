@@ -1,16 +1,17 @@
-package edu.jhu.cs.damsl.engine.storage.page.factory;
+package edu.jhu.cs.damsl.factory.page;
 
 import java.io.DataInput;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
-import edu.jhu.cs.damsl.catalog.Schema;
 import org.jboss.netty.buffer.ChannelBuffer;
+
+import edu.jhu.cs.damsl.catalog.Schema;
 import edu.jhu.cs.damsl.engine.storage.page.PageHeader;
 import edu.jhu.cs.damsl.engine.storage.page.SlottedPageHeader;
 import edu.jhu.cs.damsl.engine.storage.page.SlottedPageHeader.Slot;
-import edu.jhu.cs.damsl.engine.storage.page.factory.HeaderFactory;
-import edu.jhu.cs.damsl.engine.storage.page.factory.PageHeaderFactory;
+import edu.jhu.cs.damsl.factory.page.HeaderFactory;
+import edu.jhu.cs.damsl.factory.page.PageHeaderFactory;
 
 public class SlottedPageHeaderFactory
 				implements HeaderFactory<SlottedPageHeader>

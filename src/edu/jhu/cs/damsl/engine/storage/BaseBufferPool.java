@@ -11,10 +11,11 @@ import org.slf4j.LoggerFactory;
 import edu.jhu.cs.damsl.catalog.Defaults;
 import edu.jhu.cs.damsl.catalog.Defaults.SizeUnits;
 import edu.jhu.cs.damsl.catalog.identifiers.PageId;
+import edu.jhu.cs.damsl.catalog.identifiers.TupleId;
 import edu.jhu.cs.damsl.engine.storage.accessor.PageAccessor;
-import edu.jhu.cs.damsl.engine.storage.page.factory.PageFactory;
 import edu.jhu.cs.damsl.engine.storage.page.Page;
 import edu.jhu.cs.damsl.engine.storage.page.PageHeader;
+import edu.jhu.cs.damsl.factory.page.PageFactory;
 
 /**
  * Manages the caching of pages in memory.
@@ -25,18 +26,20 @@ import edu.jhu.cs.damsl.engine.storage.page.PageHeader;
  * prefetching strategies, for pre-emptively reading pages from disk.
  */
 public abstract class BaseBufferPool<
+                          IdType     extends TupleId,
                           HeaderType extends PageHeader,
-                          PageType   extends Page<HeaderType>>
-                        implements PageAccessor<HeaderType, PageType>
+                          PageType   extends Page<IdType, HeaderType>>
+                        implements PageAccessor<IdType, HeaderType, PageType>
 {  
   protected static final Logger logger = LoggerFactory.getLogger(BaseBufferPool.class);
   protected DirectChannelBufferFactory pool;
   
+  // Free page list.
   protected LinkedBlockingDeque<PageType> freePages;
   protected Integer pageSize;
   protected Integer numPages;
 
-  public BaseBufferPool(PageFactory<HeaderType, PageType> pageFactory,
+  public BaseBufferPool(PageFactory<IdType, HeaderType, PageType> pageFactory,
                         Integer bufferSize, SizeUnits bufferUnit,
                         Integer pageSize, SizeUnits pageUnit)
   {
@@ -61,7 +64,7 @@ public abstract class BaseBufferPool<
   
   public Integer getNumFreePages() { return freePages.size(); }
 
-  protected void initPages(PageFactory<HeaderType, PageType> pageFactory) {
+  protected void initPages(PageFactory<IdType, HeaderType, PageType> pageFactory) {
     for (int i = 0; i < numPages; ++i) {
       ChannelBuffer buf = pool.getBuffer(pageSize);
       if ( buf != null ) freePages.add(pageFactory.getPage(i, buf, null));
@@ -90,4 +93,9 @@ public abstract class BaseBufferPool<
     }    
   }
 
+  public void dumpFreePages() {
+    for (PageType p : freePages) {
+      logger.info("fp {}", p.toString());
+    }
+  }
 }

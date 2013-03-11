@@ -9,15 +9,10 @@ import org.jboss.netty.buffer.ChannelBuffer;
 import edu.jhu.cs.damsl.catalog.Defaults;
 import edu.jhu.cs.damsl.catalog.Schema;
 import edu.jhu.cs.damsl.engine.storage.Tuple;
-import edu.jhu.cs.damsl.utils.hw1.HW1.*;
 
-@CS316Todo
-@CS416Todo
 public class SlottedPageHeader extends PageHeader {
 
-  public static final short SLOT_SIZE = (Short.SIZE>>3)*2;
-  public static final short INVALID_SLOT = -1;
-
+  // Each tuple slot can be at most 32Kb large
   public class Slot {
     public short offset;
     public short length;
@@ -25,6 +20,12 @@ public class SlottedPageHeader extends PageHeader {
     public Slot() { offset = -1; length = -1; }
     public Slot(short off, short len) { offset = off; length = len; }
   }
+  
+  public static final short SLOT_SIZE = (Short.SIZE>>3)*2;
+  public static final short INVALID_SLOT = -1;
+
+  short slotCapacity, slotIndex;
+  ArrayList<Slot> slots;
 
   public SlottedPageHeader(ChannelBuffer buf) {
     this((byte) 0x0, (short) -1, buf);
@@ -38,20 +39,8 @@ public class SlottedPageHeader extends PageHeader {
 
   public SlottedPageHeader(byte flags, short tupleSize, ChannelBuffer buf)
   {
-    this(flags, tupleSize, (short) buf.capacity());
-  }
-
-  public SlottedPageHeader(byte flags, short tupleSize, short bufCapacity)
-  {
-    super(flags, tupleSize, bufCapacity);
-    
-    short numSlots = 
-      (tupleSize <= 0? Integer.valueOf(-1).shortValue() : 
-        Integer.valueOf(
-          (bufCapacity - (super.getHeaderSize()+((Short.SIZE>>3)*2)))
-              / (tupleSize + SLOT_SIZE)).shortValue());
-    
-    resetHeader(numSlots, (short) 0);
+    this(flags, tupleSize, (short) buf.capacity(),
+         (short) (tupleSize <= 0? -1 : buf.capacity() / tupleSize), (short) 0);
   }
 
   public SlottedPageHeader(byte flags, short tupleSz, short bufCapacity,
@@ -66,184 +55,174 @@ public class SlottedPageHeader extends PageHeader {
     resetHeader(numSlots, slotIdx);
   }
   
-  /**
-    * Resets this header, altering the number of slots maintained in
-    * the page directory, and setting the free slot search marker to
-    * the given slot index.
-    */
-  @CS316Todo
-  @CS416Todo
-  public void resetHeader(short numSlots, short slotIdx) {}
+  public void resetHeader(short numSlots, short slotIdx) {
+    slotCapacity = numSlots;
+    slotIndex = (short) (slotCapacity > 0? slotIdx : -1);
+    slots = new ArrayList<Slot>(
+        slotCapacity < 0 ? Defaults.defaultPageSlots : slotCapacity);
+    headerSize = getHeaderSize();
+
+    if ( slotCapacity > 0 ) {
+      for (int i = 0; i < slotCapacity; ++i) { slots.add(new Slot()); }
+    }
+    super.resetHeader();
+  }
   
-  /**
-    * Resets the header, clearing the current state of the slot directory,
-    * and setting the free slot search marker to the first slot.
-    */
-  @CS316Todo
-  @CS416Todo
-  public void resetHeader() {}
+  public void resetHeader() { resetHeader(slotCapacity, (short) 0); }
   
-  /**
-   * Writes this header to the buffer backing this page.
-   */
-  @CS316Todo
-  @CS416Todo
+  // Write the in-memory header to the buffer backing this page.
   @Override
-  public void writeHeader(ChannelBuffer buf) {}
+  public void writeHeader(ChannelBuffer buf) {
+    super.writeHeader(buf);
+    buf.writeShort(slotCapacity);
+    if ( slotCapacity > 0 ) buf.writeShort(slotIndex);
+    if ( slotCapacity <= 0 ) buf.writeShort(slots.size());
+    for ( Slot s : slots ) {
+      buf.writeShort(s.offset);
+      buf.writeShort(s.length);
+    }
+  }
 
-  /**
-   * Returns the size of the header, in bytes.
-   */
-  @CS316Todo
-  @CS416Todo
+  // Returns the size of the disk-based header repr, in bytes.
   @Override
-  public short getHeaderSize() { return -1; }
+  public short getHeaderSize() {
+    return Integer.valueOf(
+          super.getHeaderSize()+
+          (Short.SIZE>>3)*2+(getNumSlots()>0? getNumSlots()*SLOT_SIZE : 0)
+        ).shortValue();
+  }
 
-
-  /**
-   * Returns whether the page associated with this header has the
-   * given amount of space available for use.
-   */  
-  @CS316Todo
-  @CS416Todo
   @Override
-  public boolean isSpaceAvailable(short size) { return false; }
+  public boolean isSpaceAvailable(short size) {
+    return isValidAppend(size);
+  }
 
-  /**
-    * Returns the number of slots in the header.
-    */
-  @CS316Todo
-  @CS416Todo
-  public int getNumSlots() { return -1; }
+  // Number of slots in the header.
+  public int getNumSlots() {
+    return slotCapacity > 0? slotCapacity : (slots == null ? 0 : slots.size());
+  }
   
-  /**
-    * Returns the slot at the given index in the slot directory.
-    */
-  @CS316Todo
-  @CS416Todo
-  public Slot getSlot(int index) { return null; }
+  public Slot getSlot(int index) {
+    Slot r = null;
+    try {
+      r = slots.get(index);
+    } catch (IndexOutOfBoundsException e) {}
+    return r;
+  }
 
-  /**
-    * Expands the slot directory to ensure that it can contain
-    * the given slot at the specified index. Blank slots should
-    * be added to the slot directory as needed.
-    */
-  @CS316Todo
-  @CS416Todo
-  public void growSlots(int index, Slot s) {}
+  public void growSlots(int index, Slot s) {
+    slots.ensureCapacity(index+1);
+    for (int i = getNumSlots(); i < index; ++i) {
+      slots.add(i, new Slot());
+      headerSize += SLOT_SIZE;
+    }
+    slots.add(index, s);
+    headerSize += SLOT_SIZE;
+  }
 
-  /**
-    * Sets the slot at the given index.
-    */
-  @CS316Todo
-  @CS416Todo
-  public void setSlot(int index, Slot s) throws IndexOutOfBoundsException {}
+  public void setSlot(int index, Slot s) throws IndexOutOfBoundsException {
+    if ( hasDynamicSlots() && index >= getNumSlots() ) { growSlots(index, s); }
+    else if ( isValidSlot(index) ) { slots.set(index, s); }
+    else throw new IndexOutOfBoundsException();
+  }
 
-  /**
-    * Sets the slot at the given index to point to the given offset
-    * and length within the page.
-    */
-  @CS316Todo
-  @CS416Todo
-  public void setSlot(int index, short offset, short length) {}
+  public void setSlot(int index, short offset, short length) {
+    setSlot(index, new Slot(offset, length));
+  }
 
-  /**
-    * Returns the page offset of the i'th slot.
-    */
-  @CS316Todo
-  @CS416Todo
-  public short getSlotOffset(int slot) { return -1; }
+  // Page offset and length of the i'th slot.
+  public short getSlotOffset(int slot) {
+    Slot s = getSlot(slot);
+    return ( s == null? -1 : s.offset );
+  }
   
-  /**
-    * Returns the tuple size of the i'th slot.
-    */
-  @CS316Todo
-  @CS416Todo
-  public short getSlotLength(int slot) { return -1; }
+  public short getSlotLength(int slot) {
+    Slot s = getSlot(slot);
+    return ( s == null? -1 : s.length );
+  }
   
-  @CS316Todo
-  @CS416Todo
-  public short getRequiredSpace(int slotIndex, short reqSpace) { return -1; }
+  public short getRequiredSpace(int slotIndex, short reqSpace) {
+    if ( hasDynamicSlots() ) {
+      // Compute space needed for both dynamic slots and the tuple.
+      int requiredSlots =
+        slotIndex >= slots.size()? (slotIndex+1)-slots.size() : slots.size();
+      return (short) ((requiredSlots > 0 ? requiredSlots : 0)*SLOT_SIZE+reqSpace);
+    }
+    return reqSpace;
+  }
 
-  /**
-    * Returns the index of the next free slot.
-    */
-  @CS316Todo
-  @CS416Todo
-  public int getNextSlot() { return -1; }
+  public int getNextSlot() {
+    int r = -1;
+    if ( hasDynamicSlots() ) { r = slots.size(); }
+    else { r = isValidSlot(slotIndex)? slotIndex : -1; }
+    return r;
+  }
+  
+  void advanceSlot() {
+    if ( !hasDynamicSlots() && slotIndex >= 0) { slotIndex++; }
+  }
 
-  /**
-    * Advances the free slot index.
-    */
-  @CS316Todo
-  @CS416Todo  
-  void advanceSlot() {}
+  public boolean hasDynamicSlots() { return slotCapacity <= 0; }
 
-  /**
-    * Indicates whether this header can resize its slot directory.
-    */
-  @CS316Todo
-  @CS416Todo
-  public boolean hasDynamicSlots() { return false; }
+  public boolean isValidSlot(int index) {
+    return index >= 0 && index < getNumSlots();
+  }
 
-  /**
-    * Indicates whether this slot at the given index exists.
-    */
-  @CS316Todo
-  @CS416Todo
-  public boolean isValidSlot(int index) { return false; }
+  // Returns whether the requested index contains a valid tuple (i.e.
+  // a non-negative offset and length).
+  public boolean isValidTuple(int index) {
+    boolean valid = isValidSlot(index);
+    Slot s = valid ? getSlot(index) : null;
+    return ( valid && s.offset >= headerSize && s.length > 0 );
+  }
 
-  /**
-    * Returns whether the requested index contains a valid tuple (i.e.
-    * a non-negative offset and length).
-    */
-  @CS316Todo
-  @CS416Todo
-  public boolean isValidTuple(int index) { return false; }
+  public boolean isValidPut(int slotIndex, short size) {
+    return isValidTupleSize(size)
+        && isValidSlot(slotIndex)
+        && getFreeSpace() > getRequiredSpace(slotIndex, size);
+  }
+  
+  public boolean isValidAppend(short size) {
+    return isValidTupleSize(size)
+        && getFreeSpace() > getRequiredSpace(getNextSlot(), size);
+  }
 
-  /**
-    * Returns whether a tuple of the given size can be written at
-    * the given slot index.
-    */
-  @CS316Todo
-  @CS416Todo
-  public boolean isValidPut(int slotIndex, short size) { return false; }
- 
-  /**
-    * Returns whether a tuple of the given size can be written to the
-    * underlying page.
-    */
-  @CS316Todo
-  @CS416Todo
-  public boolean isValidAppend(short size) { return false; }
+  public boolean useSlot(int slotIndex, short tupleSize) {
+    boolean r = false;
+    if ( r = isValidPut(slotIndex, tupleSize) ) {
+      if ( filledBackward() ) useSpace(tupleSize);
+      setSlot(slotIndex, freeSpaceOffset, tupleSize);
+      if ( !filledBackward() ) useSpace(tupleSize);
+    }
+    return r;
+  }
 
-  /**
-    * Uses the slot at the given index, and returns whether the operation
-    * succeeded.
-    */
-  @CS316Todo
-  @CS416Todo
-  public boolean useSlot(int slotIndex, short tupleSize) { return false; }
+  public int useNextSlot(short tupleSize) {
+    int r = -1;
+    if ( isValidAppend(tupleSize) ) {
+      r = getNextSlot();
+      if ( filledBackward() ) useSpace(tupleSize);
+      setSlot(r, freeSpaceOffset, tupleSize);
+      advanceSlot();
+      if ( !filledBackward() ) useSpace(tupleSize);
+    }
+    return r;
+  }
 
-  /**
-    * Uses the next free slot, and returns whether the operation succeeded.
-    */
-  @CS316Todo
-  @CS416Todo
-  public int useNextSlot(short tupleSize) { return -1; }
+  public void resetSlot(int slotIndex) {
+    setSlot(slotIndex, new Slot());
+  }
 
-  /**
-    * Resets a specific slot.
-    */
-  @CS316Todo
-  @CS416Todo
-  public void resetSlot(int slotIndex) {}
-
-  /**
-    * Returns a human readable representation of this header;
-    */
-  @CS316Todo
-  @CS416Todo
-  public String toString() { return ""; }
+  public String toString() {
+    String r = super.toString() + " slots:[";
+    for (int i = 0; i < slots.size(); ++i) {
+      Slot s = slots.get(i);
+      if ( s.length > 0 ) {
+        r += Integer.toString(i) + ":" + s.offset + "," + s.length + ";";
+      }
+    }
+    r += "]";
+    return r;
+  }
 
 }

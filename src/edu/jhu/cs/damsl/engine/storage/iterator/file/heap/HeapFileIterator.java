@@ -1,5 +1,6 @@
 package edu.jhu.cs.damsl.engine.storage.iterator.file.heap;
 
+import edu.jhu.cs.damsl.catalog.identifiers.TupleId;
 import edu.jhu.cs.damsl.engine.storage.DbBufferPool;
 import edu.jhu.cs.damsl.engine.storage.accessor.HeapFileAccessor;
 import edu.jhu.cs.damsl.engine.storage.file.HeapFile;
@@ -9,21 +10,33 @@ import edu.jhu.cs.damsl.engine.storage.page.Page;
 import edu.jhu.cs.damsl.engine.storage.page.PageHeader;
 
 public abstract class HeapFileIterator<
-                          HeaderType extends PageHeader,
-                          PageType extends Page<HeaderType>,
-                          FileType extends HeapFile<HeaderType, PageType>>
-                        extends BaseStorageFileIterator<HeaderType, PageType>
+                          EntityIdType,
+                          IdType      extends TupleId,
+                          HeaderType  extends PageHeader,
+                          PageType    extends Page<IdType, HeaderType>,
+                          FileType    extends HeapFile<IdType, HeaderType, PageType>>
+                        extends BaseStorageFileIterator<IdType, HeaderType, PageType>
 {
 
-  public HeapFileIterator(DbBufferPool<HeaderType, PageType, FileType> pool, FileType f)
+  public HeapFileIterator(DbBufferPool<EntityIdType, IdType,
+                                       HeaderType, PageType, FileType> pool,
+                          FileType f)
   {
-    super(new HeapFileAccessor<HeaderType, PageType, FileType>(pool, f));
+    super(new HeapFileAccessor<EntityIdType, IdType, HeaderType, PageType, FileType>(pool, f));
+  }
+
+  public HeapFileIterator(DbBufferPool<EntityIdType, IdType,
+                                       HeaderType, PageType, FileType> pool,
+                          FileType f, IdType start, IdType end)
+  {
+    super(new HeapFileAccessor<EntityIdType, IdType, HeaderType, PageType, FileType>(pool, f),
+          start, end);
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public HeapFileAccessor<HeaderType, PageType, FileType> getAccessor() {
-    return (HeapFileAccessor<HeaderType, PageType, FileType>) super.getAccessor();
+  public HeapFileAccessor<EntityIdType, IdType, HeaderType, PageType, FileType> getAccessor() {
+    return (HeapFileAccessor<EntityIdType, IdType, HeaderType, PageType, FileType>) super.getAccessor();
   }
 
 }

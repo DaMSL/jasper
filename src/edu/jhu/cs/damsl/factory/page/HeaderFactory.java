@@ -1,4 +1,4 @@
-package edu.jhu.cs.damsl.engine.storage.page.factory;
+package edu.jhu.cs.damsl.factory.page;
 
 import java.io.DataInput;
 import java.io.FileNotFoundException;

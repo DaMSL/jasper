@@ -12,15 +12,16 @@ import edu.jhu.cs.damsl.catalog.Schema;
 import edu.jhu.cs.damsl.catalog.identifiers.FileId;
 import edu.jhu.cs.damsl.catalog.identifiers.PageId;
 import edu.jhu.cs.damsl.catalog.identifiers.TableId;
+import edu.jhu.cs.damsl.catalog.identifiers.tuple.SlottedTupleId;
 import edu.jhu.cs.damsl.catalog.specs.TableSpec;
 import edu.jhu.cs.damsl.engine.dbms.DbEngine;
 import edu.jhu.cs.damsl.engine.storage.file.SlottedHeapFile;
-import edu.jhu.cs.damsl.engine.storage.file.factory.SlottedStorageFileFactory;
 import edu.jhu.cs.damsl.engine.storage.iterator.page.StorageIterator;
 import edu.jhu.cs.damsl.engine.storage.page.Page;
 import edu.jhu.cs.damsl.engine.storage.page.SlottedPage;
 import edu.jhu.cs.damsl.engine.storage.page.SlottedPageHeader;
 import edu.jhu.cs.damsl.engine.storage.Tuple;
+import edu.jhu.cs.damsl.factory.file.SlottedStorageFileFactory;
 import edu.jhu.cs.damsl.language.core.types.*;
 import edu.jhu.cs.damsl.utils.CSVLoader;
 import edu.jhu.cs.damsl.utils.Lineitem;
@@ -29,17 +30,17 @@ import edu.jhu.cs.damsl.utils.WorkloadGenerator;
 public class HW1Terminal extends Thread {
   String prompt;
 
-  DbEngine<SlottedPageHeader, SlottedPage, SlottedHeapFile> dbms;
-  WorkloadGenerator<SlottedPageHeader, SlottedPage, SlottedHeapFile> generator;
+  DbEngine<SlottedTupleId, SlottedPageHeader, SlottedPage, SlottedHeapFile> dbms;
+  WorkloadGenerator<SlottedTupleId, SlottedPageHeader, SlottedPage, SlottedHeapFile> generator;
   
   public HW1Terminal(String prompt) {
     this.prompt = prompt;
     
     SlottedStorageFileFactory f = new SlottedStorageFileFactory();
-    dbms = new DbEngine<SlottedPageHeader, SlottedPage, SlottedHeapFile>(f);
+    dbms = new DbEngine<SlottedTupleId, SlottedPageHeader, SlottedPage, SlottedHeapFile>(f);
 
     generator = 
-      new WorkloadGenerator<SlottedPageHeader, SlottedPage, SlottedHeapFile>(dbms);
+      new WorkloadGenerator<SlottedTupleId, SlottedPageHeader, SlottedPage, SlottedHeapFile>(dbms);
   }
   
   public static LinkedList<String> parseCommand(String msg) {
@@ -67,7 +68,7 @@ public class HW1Terminal extends Thread {
 
   Page getPageFromFile(TableId tId, int fileIdx, int pageNum) {
     Page r = null;
-    List<FileId> files = tId.getFiles();
+    List<FileId> files = tId.files();
     if ( !( files == null || files.isEmpty() || fileIdx >= files.size() ) ) {
       FileId fid = files.get(fileIdx);
       if ( pageNum < fid.numPages() ) {
@@ -79,7 +80,7 @@ public class HW1Terminal extends Thread {
     } else if ( files != null && fileIdx >= files.size() ) {
       System.err.println("Invalid file index " + fileIdx);
     } else {
-      System.err.println("Empty relation " + tId.getName());
+      System.err.println("Empty relation " + tId.name());
     }
     return r;
   }
@@ -140,7 +141,8 @@ public class HW1Terminal extends Thread {
       
       // Reinitialize the DBMS from a catalog file.
       SlottedStorageFileFactory f = new SlottedStorageFileFactory();      
-      dbms = new DbEngine<SlottedPageHeader, SlottedPage, SlottedHeapFile>(catalogFile, f);
+      dbms = new DbEngine<SlottedTupleId, SlottedPageHeader,
+                          SlottedPage, SlottedHeapFile>(catalogFile, f);
 
     } else if (cmd.toLowerCase().equals("save")) {
 

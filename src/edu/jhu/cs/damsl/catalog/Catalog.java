@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.jhu.cs.damsl.catalog.Schema;
+import edu.jhu.cs.damsl.catalog.identifiers.IndexId;
 import edu.jhu.cs.damsl.catalog.identifiers.TableId;
 import edu.jhu.cs.damsl.catalog.specs.TableSpec;
 
@@ -30,9 +31,13 @@ public class Catalog implements Serializable {
 
   // Base relations.
   HashMap<String, TableSpec> relations;
-  
+
+  // Indexes over base relations.
+  HashMap<TableId, LinkedList<IndexId>> indexes;
+
   public Catalog() {
     relations = new HashMap<String, TableSpec>();
+    indexes = new HashMap<TableId, LinkedList<IndexId>>();
   }
 
   // Return a shadow catalog. This is very similar to a clone operation,
@@ -56,6 +61,7 @@ public class Catalog implements Serializable {
   public TableId addTable(String tableName, Schema schema) {
     TableSpec ts = new TableSpec(tableName, schema);
     relations.put(tableName, ts);
+    indexes.put(ts.getId(), new LinkedList<IndexId>());
     return ts.getId();
   }
   
@@ -79,6 +85,46 @@ public class Catalog implements Serializable {
         }
       }
     }
+  }
+
+  // Index accessors.
+
+  // Adds an index with the given key schema to the relation.
+  // TODO: typecheck index key to ensure its attributes are present in the relation.
+  public IndexId addIndex(TableId rel, Schema keySchema) {
+    IndexId r = null;
+    boolean found = false;
+    LinkedList<IndexId> existingIndexes = null;
+    if ( indexes.containsKey(rel) ) {
+      existingIndexes = indexes.get(rel);
+      for ( IndexId id : existingIndexes ) {
+        if ( id.schema().namedMatch(keySchema) ) { found = true; break; }
+      }
+    } else {
+      existingIndexes = new LinkedList<IndexId>();
+      indexes.put(rel, existingIndexes);
+    }
+
+    // Add index only if it does not exist alredy.
+    if ( !found ) {
+      r = new IndexId(rel, keySchema);
+      existingIndexes.add(r);
+    }
+
+    return r;
+  }
+
+  // Removes the index corresponding to the given index id.
+  public void removeIndex(IndexId id)
+  {
+    TableId rel = id.relation();
+    LinkedList<IndexId> existingIndexes = indexes.get(rel);
+    if ( existingIndexes != null ) { existingIndexes.remove(id); }
+  }
+
+  // Retrieves all indexes availale for the given relation.
+  public LinkedList<IndexId> getIndexes(TableId rel)  {
+    return indexes.get(rel);
   }
 
 }

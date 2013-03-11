@@ -4,5 +4,5 @@ import java.util.List;
 import edu.jhu.cs.damsl.catalog.identifiers.FileId;
 
 public interface Durable extends Addressable {
-  public List<FileId> getFiles();
+  public List<FileId> files();
 }

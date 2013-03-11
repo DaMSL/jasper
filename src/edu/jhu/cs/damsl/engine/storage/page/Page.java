@@ -8,9 +8,11 @@ import org.slf4j.LoggerFactory;
 
 import edu.jhu.cs.damsl.catalog.Schema;
 import edu.jhu.cs.damsl.catalog.identifiers.PageId;
+import edu.jhu.cs.damsl.catalog.identifiers.TupleId;
 import edu.jhu.cs.damsl.engine.storage.Tuple;
 import edu.jhu.cs.damsl.engine.storage.iterator.page.StorageIterator;
-import edu.jhu.cs.damsl.engine.storage.page.factory.HeaderFactory;
+import edu.jhu.cs.damsl.factory.page.HeaderFactory;
+import edu.jhu.cs.damsl.factory.tuple.TupleIdFactory;
 
 /**
  * The basic unit of information transfer to/from disk.
@@ -19,7 +21,8 @@ import edu.jhu.cs.damsl.engine.storage.page.factory.HeaderFactory;
  * They contain a number of tuples from a given relation, the exact layout of these tuples in the
  * page depends on the type of page.
  */
-public abstract class Page<HeaderType extends PageHeader>
+public abstract class Page<IdType extends TupleId,
+                           HeaderType extends PageHeader>
                         extends DuplicatedChannelBuffer
 {
   
@@ -63,10 +66,15 @@ public abstract class Page<HeaderType extends PageHeader>
 
   // Create a page object without initializing a new header.
   // This is a shallow copy of the page.
-  public Page(Page<HeaderType> p) {
+  public Page(Page<IdType, HeaderType> p) {
     super(p);
     pageId = p.pageId;
     header = p.header;
+  }
+
+  protected void initializeHeader(Schema sch, byte flags) {
+    if ( pageId.fileId() != null ) { readHeader(); }
+    else header = getHeaderFactory().getHeader(sch, this, flags);
   }
 
   public PageId getId() { return pageId; }
@@ -76,12 +84,9 @@ public abstract class Page<HeaderType extends PageHeader>
   // Factory accessors
   public abstract HeaderFactory<HeaderType> getHeaderFactory();
 
-  // Header accessors
-  protected void initializeHeader(Schema sch, byte flags) {
-    if ( pageId.fileId() != null ) { readHeader(); }
-    else header = getHeaderFactory().getHeader(sch, this, flags);
-  }
+  public abstract TupleIdFactory<IdType> getTupleIdFactory();
 
+  // Header accessors
   public HeaderType getHeader() { return header; }
 
   public void setHeader(HeaderType hdr) { header = hdr; }
@@ -99,10 +104,30 @@ public abstract class Page<HeaderType extends PageHeader>
   // The default tuple retrieval method is via iteration.
   public abstract StorageIterator iterator();
 
-  // Append a variable-length tuple to the page.
-  public abstract boolean putTuple(Tuple t, short requestedSize);
+  // A two-sided iterator within this page. If the first argument is null,
+  // iteration starts from the beginning of the page, and if the second
+  // argument is null, ends with the last tuple of the page.
+  public abstract StorageIterator iterator(IdType start, IdType end);
 
-  // Append a fixed-size tuple to the page.
-  public abstract boolean putTuple(Tuple t);
+  // Get a specific tuple from the page
+  public abstract Tuple getTuple(IdType id);
+
+  // Append a tuple to the page, supporting both fixed and variable-length tuples.
+  public abstract IdType putTuple(Tuple t);
+
+  // Insert a tuple at the exact location given by the tuple identifier.
+  // The tuple type indicates the length of the give tuple, and thus whether
+  // it is fixed or variable length.
+  public abstract boolean insertTuple(IdType id, Tuple t);
+  
+  // Remove a specific tuple from this page.
+  public abstract boolean removeTuple(IdType id);
+
+  // Remove all tuples from this page.
+  public abstract void removeTuples();
+
+  // TODO
+  // Defragment the page, compacting both slot and space usage.
+  public void defragment() {}
 
 }

@@ -9,19 +9,19 @@ import org.slf4j.LoggerFactory;
 
 import edu.jhu.cs.damsl.catalog.Schema;
 import edu.jhu.cs.damsl.catalog.identifiers.FileId;
+import edu.jhu.cs.damsl.catalog.identifiers.FileId.FileKind;
 import edu.jhu.cs.damsl.catalog.identifiers.PageId;
 import edu.jhu.cs.damsl.catalog.identifiers.TableId;
+import edu.jhu.cs.damsl.catalog.identifiers.TupleId;
 import edu.jhu.cs.damsl.engine.storage.page.Page;
 import edu.jhu.cs.damsl.engine.storage.page.PageHeader;
-import edu.jhu.cs.damsl.engine.storage.page.factory.HeaderFactory;
-import edu.jhu.cs.damsl.utils.hw1.HW1.*;
+import edu.jhu.cs.damsl.factory.page.HeaderFactory;
 
-@CS316Todo
-@CS416Todo
 public abstract class HeapFile<
+                          IdType extends TupleId,
                           HeaderType extends PageHeader,
-                          PageType extends Page<HeaderType>>
-                      implements StorageFile<HeaderType, PageType>
+                          PageType extends Page<IdType, HeaderType>>
+                      implements StorageFile<IdType, HeaderType, PageType>
 {
   protected static final Logger logger = LoggerFactory.getLogger(HeapFile.class);
   FileId fileId;
@@ -30,22 +30,22 @@ public abstract class HeapFile<
   TableId relation;
   Schema tupleSchema;
   
-  public HeapFile(String fName, Integer pageSize, Long capacity)
+  public HeapFile(FileKind k, Integer pageSize, Long capacity)
       throws FileNotFoundException
   {
-    this(fName, pageSize, capacity, null);
+    this(k, pageSize, capacity, null);
   }
 
-  public HeapFile(String fName, Integer pageSize, Long capacity, Schema sch)
+  public HeapFile(FileKind k, Integer pageSize, Long capacity, Schema sch)
       throws FileNotFoundException
   {
-    this(fName, pageSize, capacity, sch, null);
+    this(k, pageSize, capacity, sch, null);
   }
 
-  public HeapFile(String fName, Integer pageSz, Long cap, Schema sch, TableId rel)
+  public HeapFile(FileKind k, Integer pageSz, Long cap, Schema sch, TableId rel)
       throws FileNotFoundException
   {
-    initialize(new FileId(fName, pageSz, 0, cap), sch, rel);
+    initialize(new FileId(k, pageSz, 0, cap), sch, rel);
   }
 
   public HeapFile(FileId fId, Schema sch, TableId rel)
@@ -59,7 +59,7 @@ public abstract class HeapFile<
     throws FileNotFoundException
   {
     fileId = fId;
-    file = new RandomAccessFile(fileId.getFile().getAbsolutePath(), "rwd");
+    file = new RandomAccessFile(fileId.file().getAbsolutePath(), "rwd");
     tupleSchema = sch;
     relation = rel;
   }
@@ -97,7 +97,6 @@ public abstract class HeapFile<
   public long capacity() { return fileId.capacity(); }
   public long remaining() { return capacity() - size(); }
 
-
   public void extend(int pageCount) {
     long requestedSize = (numPages()+pageCount)*pageSize();
     if ( requestedSize < capacity() ) {
@@ -134,17 +133,66 @@ public abstract class HeapFile<
 
   // Reads the requested page id into the given buffer.
   // Returns the number of bytes successfully read from the heap file.
-  @CS316Todo
-  @CS416Todo
   public int readPage(PageType buf, PageId id) {
-    return -1;
+    int read = 0;
+    if ( buf.capacity() == pageSize()
+          && id.fileId().equals(fileId) && id.pageNum() < numPages() ) 
+    {
+      int offset = pageSize() * id.pageNum();
+      try {
+        file.seek(offset);
+        read = buf.setBytes(0, file.getChannel(), pageSize());
+        buf.setId(id);
+        buf.markReaderIndex(); buf.markWriterIndex();
+        buf.setIndex(0, buf.capacity());
+        buf.readHeader(); // Refresh the in-mem header.
+        buf.resetReaderIndex(); buf.resetWriterIndex();
+      } catch (IOException e) {
+        logger.error("file {} failed to read page {}", fileId, id.pageNum());
+        e.printStackTrace();
+      }
+    } else {
+      logger.error("file id eq: {}, pnum lt: {}", id.fileId().equals(fileId), id.pageNum() < numPages());
+      logger.error(
+          "file read mismatch (page:{} vs file:{})", id.fileId(), fileId);      
+    }
+    return read;
   }
 
   // Returns the number of bytes written from the page to the heap file.
-  @CS316Todo
-  @CS416Todo
   public int writePage(PageType p) {
-    return -1;
+    int written = 0;
+    PageId pId = p.getId();
+
+    // Set the page id for in-memory pages being written to this file.
+    if ( pId.fileId() == null ) {
+      pId = new PageId(fileId, pId.pageNum());
+      p.setId(pId);
+    }
+    
+    if ( p.capacity() == pageSize() && pId.fileId().equals(fileId) ) {
+      long offset = pageSize() * pId.pageNum();
+      if ( offset+pageSize() < capacity() ) {
+        if ( pId.pageNum() >= numPages() ) { extend(pId.pageNum()-numPages()+1); }
+        try {
+          file.seek(offset);
+          p.markReaderIndex(); p.markWriterIndex();
+          p.setIndex(0, 0);
+          p.writeHeader(); // Refresh the disk header.
+          written = p.getBytes(0, file.getChannel(), pageSize());
+          p.resetReaderIndex(); p.resetWriterIndex();
+        } catch (IOException e) {
+          logger.error("file {} failed to write page {}", fileId, pId.pageNum());
+          e.printStackTrace();
+        }
+      } else {
+        logger.error("attempt to write file {} beyond capacity", fileId);
+      }
+    } else {
+      logger.error(
+          "file write mismatch (page:{} vs file:{})", pId.fileId(), fileId);
+    }
+    return written;
   }
 
   public abstract HeaderFactory<HeaderType> getHeaderFactory();
@@ -153,10 +201,19 @@ public abstract class HeapFile<
     return getHeaderFactory().readHeaderDirect(file);
   }
 
-  @CS316Todo
-  @CS416Todo
   public HeaderType readPageHeader(PageId id) {
-    return null;
+    HeaderType r = null;
+    if ( id.fileId().equals(fileId) && id.pageNum() < numPages() ) {
+      int offset = pageSize() * id.pageNum();
+      try {
+        file.seek(offset);
+        r = readCurrentPageHeader();
+      } catch (IOException e) {
+        logger.error("file {} failed to read page {}", fileId, id.pageNum());
+        e.printStackTrace();
+      }
+    }
+    return r;
   }
 
   public String toString() {
