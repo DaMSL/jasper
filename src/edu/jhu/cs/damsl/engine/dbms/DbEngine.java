@@ -56,7 +56,7 @@ public class DbEngine<IdType      extends TupleId,
   public TableId addRelation(String tableName, Schema schema) {
     TableId tid = null;
     try { 
-      catalog.addTable(tableName, schema);
+      tid = catalog.addTable(tableName, schema);
       storage.addRelation(null, tid, schema);
     } catch (TransactionAbortException e) {
       logger.error("Failed to add relation {}", tableName);
