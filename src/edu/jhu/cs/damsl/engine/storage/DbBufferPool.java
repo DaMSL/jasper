@@ -18,7 +18,7 @@ import edu.jhu.cs.damsl.engine.storage.accessor.FileAccessor;
 import edu.jhu.cs.damsl.engine.storage.file.StorageFile;
 import edu.jhu.cs.damsl.engine.storage.page.Page;
 import edu.jhu.cs.damsl.engine.storage.page.PageHeader;
-import edu.jhu.cs.damsl.engine.utils.LRUCache;
+import edu.jhu.cs.damsl.utils.LRUCache;
 import edu.jhu.cs.damsl.factory.page.PageFactory;
 
 public class DbBufferPool<EntityIdType,
